@@ -42,13 +42,13 @@ class Logger(Subscriber):
             self.logger.addHandler(sh)
 
     def on_start(self, job):
-        pass
+        self.logger.info('Job {0} started', repr(job))
 
     def on_finished(self, job):
         pass
 
-    def on_fatal_error(self, exc_cls, exc_val, exc_tb):
-        pass
+    def on_fatal_error(self, *exc_info):
+        self.logger.critical('FATAL ERROR', exc_info=exc_info)
 
     def on_update(self, job):
         pass

@@ -1,6 +1,7 @@
 import argparse
 from worker import Worker
-from reporter.logger import Logger
+from reporters.logger import Logger
+
 def main(args):
     if args.log_file is None:
         logger = Logger(args.log_options[0], args.log_options[1])
@@ -9,7 +10,6 @@ def main(args):
 
     if args.input_path is None and args.request_type == 'put':
         raise ValueError('PUT method needs --input-path option')
-
 
     worker = Worker(args.request_type, args.host, args.success, args.processes)
     worker.subscribe('reporters', logger)

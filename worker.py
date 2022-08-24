@@ -1,3 +1,4 @@
+import sys
 import threading
 import requests
 from queue import Queue
@@ -5,9 +6,7 @@ from time import time
 
 class Worker:
     def __init__(self, method, host, success, processes):
-        self.method = method
-        self.url = host
-        self.success = success
+
         self.mon = threading.Condition()
         self.queue = Queue()
         self.pool = list()
@@ -34,10 +33,22 @@ class Worker:
                 self.mon.notify()
 
     def _do(self):
-        start = time()
-        res = requests.request(method=self.method, url=self.url)
-        end = time()
-        self.publish('reporters','new_result', self.method, self.url,'success' if res.status_code in self.success else 'failed', end-start)
+        while True:
+            item = self.queue.get()
+            try:
+                if not item:
+                    break
+                func, args, kwargs = item
+                try:
+                    func(*args, **kwargs)
+                except:
+                    self.fatal_error(*sys.exc_info())
+                finally:
+                    self._done()
+            finally:
+                self.queue.task_done()
+
+
 
     def start(self):
         for th in self.pool:
@@ -66,8 +77,14 @@ class Worker:
         try:
             job.start(self)
         except:
-            print('RAISE')
+
             raise
+
+    def fatal_error(self, exc_info):
+        self.publish('reporters', 'fatal_error', exc_info)
+
+    def new_result(self, method, url, result, elapsed_time):
+        self.publish('reporters', 'new_result', method, url, result, elapsed_time)
 
     def subscribe(self, channel, subscriber):
         self.subscribers[channel].append(subscriber)
@@ -80,3 +97,7 @@ class Worker:
             job = subscriber.handle(self, *args, **kwargs)
             if job is not None:
                 self._queue_job(job)
+
+    def new_task(self, ):
+        self.publish('clients', '')
+
