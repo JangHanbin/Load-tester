@@ -7,6 +7,7 @@ class Job:
         self.parent = parent
         self.children = set()
         self.cancelled = False
+        self.exc_info = None, None, None
 
     def start(self, worker):
         worker.submit(self._invoke, (worker,), {})
@@ -14,7 +15,6 @@ class Job:
     def _invoke(self, worker):
         try:
             self._run(worker, *self.args, **self.kwargs)
-
         except:
             self.exc_info = sys.exc_info()
         finally:

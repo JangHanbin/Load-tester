@@ -3,16 +3,27 @@ from reporters.base import Subscriber
 from time import time
 import requests
 
+
 class BaseClient(Subscriber):
+    def __init__(self, iterations):
+        self.iterations = iterations
+
+
+    def on_load(self, method, host, success):
+        return Client((method, host, success, self.iterations), {})
 
 
 class Client(Job):
+    def _run(self, worker, method, host, success, iterations):
 
-    def _run(self, worker, ):
+        for _ in range(iterations):
+            start = time()
+            res = requests.request(method=method, url=host)
+            end = time()
+            worker.new_result(method, host, 'success' if res.status_code in success else 'failed',
+                              end - start)
 
-        worker.new_result(self.method, self.url, 'success' if res.status_code in self.success else 'failed', end - start)
 
-    def do(self):
-        start = time()
-        res = requests.request(method=self.method, url=self.url)
-        end = time()
+    # def _invoke(self, worker):
+    # def do(self):
+

@@ -1,6 +1,7 @@
 import argparse
 from worker import Worker
 from reporters.logger import Logger
+from testers.client import BaseClient
 
 def main(args):
     if args.log_file is None:
@@ -11,10 +12,13 @@ def main(args):
     if args.input_path is None and args.request_type == 'put':
         raise ValueError('PUT method needs --input-path option')
 
-    worker = Worker(args.request_type, args.host, args.success, args.processes)
+    worker = Worker(args.processes)
     worker.subscribe('reporters', logger)
+    worker.subscribe('clients', BaseClient(args.iterations))
     worker.start()
 
+    for _ in range(args.processes):
+        worker.new_task(args.request_type, args.host, args.success)
     worker.join()
 
 
@@ -26,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument('--success', dest='success', type=list, default=[200])
     parser.add_argument('--input-path', dest='input_path', type=str)
     parser.add_argument('--request-type', dest='request_type', type=str, default='get')
+    parser.add_argument('--iterations', dest='iterations', type=int, default=5)
     parser.add_argument('--log-file', dest='log_file', type=str, default=None)
     parser.add_argument('--log-options', dest='log_options', type=str,
                         metavar=('LOGGING_TYPE', 'LOG_LEVEL'),

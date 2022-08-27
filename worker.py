@@ -5,13 +5,14 @@ from queue import Queue
 from time import time
 
 class Worker:
-    def __init__(self, method, host, success, processes):
+    def __init__(self, processes):
 
         self.mon = threading.Condition()
         self.queue = Queue()
         self.pool = list()
         self.subscribers = {
-            'reporters': list()
+            'reporters': list(),
+            'clients': list()
         }
         self.jobs = list()
         self.counter = 0
@@ -42,12 +43,11 @@ class Worker:
                 try:
                     func(*args, **kwargs)
                 except:
-                    self.fatal_error(*sys.exc_info())
+                    self.fatal_error(sys.exc_info())
                 finally:
                     self._done()
             finally:
                 self.queue.task_done()
-
 
 
     def start(self):
@@ -79,6 +79,17 @@ class Worker:
         except:
 
             raise
+    def job_done(self, job):
+        self.publish('reporters', 'finished', job)
+        with self.mon:
+            parent = job.parent
+            if parent is not None:
+                parent.children.discard(job)
+            for x in job.children:
+                if x.parent is job:
+                    x.parent = parent
+            if self.counter == 0 and not self.jobs:
+                self.mon.notify()
 
     def fatal_error(self, exc_info):
         self.publish('reporters', 'fatal_error', exc_info)
@@ -93,11 +104,20 @@ class Worker:
         self.subscribers[channel].remove(subscriber)
 
     def publish(self, channel, *args, **kwargs):
+
         for subscriber in self.subscribers[channel]:
             job = subscriber.handle(self, *args, **kwargs)
             if job is not None:
                 self._queue_job(job)
 
-    def new_task(self, ):
-        self.publish('clients', '')
+    def submit(self, func, args, kwargs):
+        self._start()
+        try:
+            self.queue.put((func, args, kwargs))
+        except:
+            self._done()
+            raise
+
+    def new_task(self, method, host, success):
+        self.publish('clients', 'load', method, host, success)
 
