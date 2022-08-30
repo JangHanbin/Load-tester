@@ -104,7 +104,6 @@ class Worker:
         self.subscribers[channel].remove(subscriber)
 
     def publish(self, channel, *args, **kwargs):
-
         for subscriber in self.subscribers[channel]:
             job = subscriber.handle(self, *args, **kwargs)
             if job is not None:
@@ -118,6 +117,6 @@ class Worker:
             self._done()
             raise
 
-    def new_task(self, method, host, success):
-        self.publish('clients', 'load', method, host, success)
+    def new_task(self, method, host, success, stream, file=None):
+        self.publish('clients', 'load', method, host, success, stream, file)
 

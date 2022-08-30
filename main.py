@@ -2,14 +2,15 @@ import argparse
 from worker import Worker
 from reporters.logger import Logger
 from testers.client import BaseClient
+from pathlib import Path
 
 def main(args):
     if args.log_file is None:
         logger = Logger(args.log_options[0], args.log_options[1])
     else:
-        logger = Logger(args.log_options[0], args.log_options[1], args.ㅣㅐㅎ_랴ㅣㄷ)
+        logger = Logger(args.log_options[0], args.log_options[1], args.log_file)
 
-    if args.input_path is None and args.request_type == 'put':
+    if args.input_path is None and args.method == 'put':
         raise ValueError('PUT method needs --input-path option')
 
     worker = Worker(args.processes)
@@ -17,20 +18,39 @@ def main(args):
     worker.subscribe('clients', BaseClient(args.iterations))
     worker.start()
 
-    for _ in range(args.processes):
-        worker.new_task(args.request_type, args.host, args.success)
+    # upload from input_path (PUT)
+    if args.input_path:
+        for path in Path(args.input_path).rglob('*'):
+            if path.is_file() and not None:
+                file_path ='/'.join(path.parts)
+                host = args.host + '/' + file_path
+                worker.new_task(args.method, host, args.success,args.stream, file_path)
+
+    elif args.url_file:
+        with open(args.url_file, 'r') as f:
+            for url in f.readlines():
+                worker.new_task(args.method, url, args.success,args.stream)
+    else:
+        for _ in range(args.processes):
+            worker.new_task(args.method, args.host, args.success,args.stream)
+
     worker.join()
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    host = parser.add_mutually_exclusive_group(required=True)
+    host.add_argument('--hosts-file', dest='hosts_file', type=str)
+    host.add_argument('--host', dest='host', type=str)
+
     parser.add_argument('--processes', dest='processes', type=int, default=1)
-    parser.add_argument('--host', dest='host', type=str, required=True)
     parser.add_argument('--success', dest='success', type=list, default=[200])
     parser.add_argument('--input-path', dest='input_path', type=str)
-    parser.add_argument('--request-type', dest='request_type', type=str, default='get')
+    parser.add_argument('--input-type', dest='input_type', type=str)
+    parser.add_argument('--method', dest='method', type=str, default='get')
     parser.add_argument('--iterations', dest='iterations', type=int, default=5)
+    parser.add_argument('--stream', dest='stream', type=bool, default=False)
     parser.add_argument('--log-file', dest='log_file', type=str, default=None)
     parser.add_argument('--log-options', dest='log_options', type=str,
                         metavar=('LOGGING_TYPE', 'LOG_LEVEL'),
