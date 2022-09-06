@@ -3,6 +3,13 @@ from worker import Worker
 from reporters.logger import Logger
 from testers.client import BaseClient
 from pathlib import Path
+import signal
+
+num_of_task = 0
+done = 0
+def handler(signum, frame):
+    print(worker)
+    exit(signum)
 
 def main(args):
     if args.log_file is None:
@@ -12,13 +19,15 @@ def main(args):
 
     if args.input_path is None and args.method == 'put':
         raise ValueError('PUT method needs --input-path option')
-
+    global worker
     worker = Worker(args.processes)
     worker.subscribe('reporters', logger)
     worker.subscribe('clients', BaseClient(args.iterations))
     worker.start()
 
     # upload from input_path (PUT)
+    global num_of_task
+    global done
     if args.input_path:
         for path in Path(args.input_path).rglob('*'):
             if path.is_file() and not None:
@@ -26,10 +35,13 @@ def main(args):
                 host = args.host + '/' + file_path
                 worker.new_task(args.method, host, args.success,args.stream, file_path)
 
-    elif args.url_file:
-        with open(args.url_file, 'r') as f:
+                num_of_task += 1
+                done = worker.num_of_done
+
+    elif args.hosts_file:
+        with open(args.hosts_file, 'r') as f:
             for url in f.readlines():
-                worker.new_task(args.method, url, args.success,args.stream)
+                worker.new_task(args.method, url.replace('\n',''), args.success,args.stream)
     else:
         for _ in range(args.processes):
             worker.new_task(args.method, args.host, args.success,args.stream)
@@ -39,6 +51,8 @@ def main(args):
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handler)
+
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     host = parser.add_mutually_exclusive_group(required=True)
     host.add_argument('--hosts-file', dest='hosts_file', type=str)

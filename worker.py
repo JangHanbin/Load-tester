@@ -16,6 +16,7 @@ class Worker:
         }
         self.jobs = list()
         self.counter = 0
+        self.num_of_done = 0
         self._init_thread(processes)
 
     def _init_thread(self, processes):

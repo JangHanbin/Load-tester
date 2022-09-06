@@ -30,6 +30,5 @@ class Client(Job):
             #             print(len(content))
 
             res = requests.request(method=method, url=host, stream=stream, data=data)
-
-            worker.new_result(method, host, 'success' if res.status_code in success else 'failed',
+            worker.new_result(method, host, 'success' if res.status_code in success else 'failed status code : {0}, body : {1}'.format(res.status_code, res.text),
                               res.elapsed.total_seconds())
